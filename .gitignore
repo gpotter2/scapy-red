@@ -1,5 +1,6 @@
 *.pyc
 *.pyo
+*.log
 dist/
 build/
 MANIFEST
