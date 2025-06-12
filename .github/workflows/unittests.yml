@@ -57,8 +57,39 @@ jobs:
       with:
         fetch-depth: 2
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
+      uses: github/codeql-action/init@v4
       with:
          languages: 'python'
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
+      uses: github/codeql-action/analyze@v4
+
+  test:
+      name: "UnitTests locally on Windows"
+      runs-on: windows-latest
+      steps:
+        # Checkout source code
+        - name: Checkout source
+          uses: actions/checkout@v4
+        
+        # install python
+        - name: Setup Python
+          uses: actions/setup-python@v5
+          with:
+            python-version: "3.14"
+        
+        # install requirements
+        - name: Install requirements
+          run: |
+            python -m pip install --upgrade pip pytest
+            pip install -e .
+        
+        # Add local admin
+        - name: Add new local admin
+          run: |
+            net user admin HolaQuetal123 /add
+            net localgroup administrators admin /add
+
+        # Run unit tests
+        - name: Run unit tests
+          run: |
+            pytest -v tests/
