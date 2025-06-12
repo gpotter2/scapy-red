@@ -20,7 +20,6 @@ import os
 import pathlib
 import tomllib
 
-
 try:
     from setuptools import setup
     from setuptools.command.sdist import sdist

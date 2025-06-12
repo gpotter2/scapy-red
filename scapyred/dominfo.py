@@ -28,7 +28,6 @@ from scapy.layers.ldap import (
 from scapy.asn1.asn1 import ASN1_STRING
 from scapy.layers.msrpce.mspac import WINNT_SID
 
-
 FUNCTIONAL = {
     0: "DS_BEHAVIOR_WIN2000",
     1: "DS_BEHAVIOR_WIN2003_WITH_MIXED_DOMAINS",
