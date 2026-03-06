@@ -2,7 +2,7 @@ name: Scapy RED unit tests
 
 on:
   push:
-    branches: [master, tests]
+    branches: [master]
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [master]
