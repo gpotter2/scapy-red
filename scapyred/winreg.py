@@ -266,16 +266,19 @@ class RegClient(CLIUtil):
             self.client.connect(target, timeout=self.timeout)
             self.client.bind()
         except ValueError as exc:
-            logger.warning(f"""
+            logger.warning(
+                f"""
                 Remote service didn't seem to be running.
                 Let's try again now that we should have trigger it. ({exc})
-                """)
+                """
+            )
 
             sleep(1.5)
             self.client.bind()
         except Scapy_Exception as exc:
             if str(3221225566) in str(exc):
-                logger.error(f"""
+                logger.error(
+                    f"""
 [!] STATUS_LOGON_FAILURE - {exc}  You used:
     - UPN {UPN},
     - password {password},
@@ -290,7 +293,8 @@ class RegClient(CLIUtil):
 UPN = "WORKGROUP\\\\Administrator" or
 UPN = "Administrator@WORKGROUP" or
 UPN = "Administrator@192.168.1.2"
-""")
+"""
+                )
             raise exc
         except TimeoutError as exc:
             logger.error(
@@ -742,15 +746,20 @@ UPN = "Administrator@192.168.1.2"
         if info is None:
             print("No information found.")
             return
-
-        print(f"""
+        class_info = info.valueof("lpClassOut.Buffer")
+        print(
+            f"""
 Info on key:
   - Number of subkeys: {info.lpcSubKeys}
   - Length of the longest subkey name (in bytes): {info.lpcbMaxSubKeyLen}
   - Number of values: {info.lpcValues}
   - Length of the longest value name (in bytes): {info.lpcbMaxValueNameLen}
   - Last write time: {from_filetime_to_datetime(info.lpftLastWriteTime)}
-""")
+  - Class: {bytes.fromhex(class_info[:-1].decode())
+            if class_info is not None
+            else "None"}
+"""
+        )
 
     @CLIUtil.addcomplete(query_info)
     def query_info_complete(self, subkey: str) -> list[str]:
