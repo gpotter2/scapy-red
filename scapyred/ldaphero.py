@@ -7,6 +7,7 @@
 Wrap Scapy's LDAPHero
 """
 
+from scapy.config import conf
 from scapy.modules.ldaphero import LDAPHero
 
 
@@ -16,6 +17,7 @@ def main():
     """
     from scapy.utils import AutoArgparse
 
+    conf.exts.load("scapy-red")
     AutoArgparse(LDAPHero)
 
 

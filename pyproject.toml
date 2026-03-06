@@ -1,7 +1,8 @@
 [build-system]
 requires = [
     "setuptools>=77.0.0",
-    "scapy@git+https://github.com/secdev/scapy.git#sha1=cc8e09187407cefce61207823239c2d5749bf046",
+    "scapy@git+https://github.com/secdev/scapy.git#sha1=85825ed5515fda3b079d4d9a926f06f81648796f",
+    "scapy-rpc>=0.0.7",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -18,7 +19,7 @@ description = "Scapy RED - tools and scripts for pentesters"
 keywords = [ "network" ]
 dependencies = [
     "scapy",
-    "scapy-rpc",
+    "scapy-rpc>=0.0.4",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -50,3 +51,4 @@ scapy-ldaphero  = "scapyred.ldaphero:main"
 scapy-smbclient = "scapyred.smbclient:main"
 scapy-smbscan   = "scapyred.smbscan:main"
 scapy-winreg    = "scapyred.winreg:main"
+scapy-lsamgr    = "scapyred.lsamgr:main"

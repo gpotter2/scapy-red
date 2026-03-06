@@ -11,6 +11,7 @@ import time
 
 from multiprocessing.dummy import Pool
 
+from scapy.config import conf
 from scapy.utils import pretty_list
 from scapy.error import warning
 from scapy.base_classes import Net
@@ -91,6 +92,7 @@ def main():
     """
     from scapy.utils import AutoArgparse
 
+    conf.exts.load("scapy-red")
     AutoArgparse(listips)
 
 

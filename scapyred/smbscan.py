@@ -189,6 +189,7 @@ def main():
     """
     from scapy.utils import AutoArgparse
 
+    conf.exts.load("scapy-red")
     AutoArgparse(smb_scan_winver)
 
 
