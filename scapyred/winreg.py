@@ -269,11 +269,12 @@ class RegClient(CLIUtil):
             logger.warning(
                 f"""
                 Remote service didn't seem to be running.
-                Let's try again now that we should have trigger it. ({exc})
+                Let's try again in 2", now that we should have trigger it. ({exc})
                 """
             )
 
-            sleep(1.5)
+            sleep(2)
+            self.client.connect(target, timeout=self.timeout)
             self.client.bind()
         except Scapy_Exception as exc:
             if str(3221225566) in str(exc):
