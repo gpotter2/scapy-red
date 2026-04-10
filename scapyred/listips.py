@@ -15,7 +15,7 @@ from scapy.config import conf
 from scapy.utils import pretty_list
 from scapy.error import warning
 from scapy.base_classes import Net
-from scapy.layers.msrpce.msdcom import DCOM_Client
+from scapy.layers.msrpce.msdcom import ServerAlive2
 
 
 def listips(
@@ -49,15 +49,14 @@ def listips(
     def resolv(ip):
         if not csv:
             print(f"Scanning {ip}...")
-        client = DCOM_Client(verb=False)
         try:
-            client.connect(ip, timeout=timeout)
-        except OSError:
+            bindings, _ = ServerAlive2(ip, timeout=timeout)
+        except (OSError, ValueError):
             return None
         # Wait
         if inter:
             time.sleep(inter)
-        return [ip, client.ServerAlive2()[0]]
+        return [ip, [x.aNetworkAddr for x in bindings]]
 
     def resolv_ign(ip):
         try:
