@@ -24,8 +24,7 @@ from scapy.config import conf
 
 conf.exts.load("scapy-rpc")
 
-# pylint: disable=wrong-import-position
-from scapy.error import Scapy_Exception
+from scapy.error import log_runtime, Scapy_Exception
 from scapy.utils import (
     CLIUtil,
 )
@@ -53,35 +52,6 @@ from scapy.layers.windows.registry import (  # noqa: E402
     RootKeys,
     RRP_Client,
 )
-
-# Set log level to benefit from Scapy warnings
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-
-# Create a stream handler
-stream_handler = logging.StreamHandler(sys.stdout)
-stream_handler.setLevel(logging.INFO)
-
-# Create a formatter and attach it
-formatter_sh = logging.Formatter("[%(levelname)s] %(message)s")
-stream_handler.setFormatter(formatter_sh)
-
-# Add the stream handler
-logger.addHandler(stream_handler)
-
-# Create a file handler
-file_handler = logging.FileHandler("winreg.log")
-file_handler.setLevel(logging.DEBUG)
-
-# Create a formatter and attach it
-formatter_fh = logging.Formatter("[%(levelname)s][%(funcName)s] %(message)s")
-file_handler.setFormatter(formatter_fh)
-
-# Add the file handler
-logger.addHandler(file_handler)
-
-
-logger.debug("Starting scapy-windows-registry module")
 
 
 def from_filetime_to_datetime(lp_filetime: PFILETIME) -> str:
@@ -251,8 +221,8 @@ class RegClient(CLIUtil):
             verb=debug,
         )
         if debug:
-            logger.setLevel(logging.DEBUG)
-            logger.debug(
+            log_runtime.setLevel(logging.DEBUG)
+            log_runtime.debug(
                 "Connecting to %s:%d with UPN=%s, " "kerberos=%s, kerberos_required=%s",
                 target,
                 port,
@@ -266,7 +236,7 @@ class RegClient(CLIUtil):
             self.client.connect(target, timeout=self.timeout)
             self.client.bind()
         except ValueError as exc:
-            logger.warning(f"""
+            log_runtime.warning(f"""
                 Remote service didn't seem to be running.
                 Let's try again in 2", now that we should have trigger it. ({exc})
                 """)
@@ -276,7 +246,7 @@ class RegClient(CLIUtil):
             self.client.bind()
         except Scapy_Exception as exc:
             if str(3221225566) in str(exc):
-                logger.error(f"""
+                log_runtime.error(f"""
 [!] STATUS_LOGON_FAILURE - {exc}  You used:
     - UPN {UPN},
     - password {password},
@@ -294,13 +264,13 @@ UPN = "Administrator@192.168.1.2"
 """)
             raise exc
         except TimeoutError as exc:
-            logger.error(
+            log_runtime.error(
                 f"[!] Timeout while connecting to {target}:{port}."
                 f"Check service status. {exc}"
             )
             raise exc
         except Exception as exc:
-            logger.error(f"[!] Exception while connecting: {exc}")
+            log_runtime.error(f"[!] Exception while connecting: {exc}")
             raise exc
 
         # Session parameters
@@ -379,7 +349,7 @@ UPN = "Administrator@192.168.1.2"
             )
         except ValueError:
             # If the root key is not recognized, raise an error
-            logger.error(f"Unknown root key: {root_path}")
+            log_runtime.error(f"Unknown root key: {root_path}")
             self.clear_all_caches()
             self.current_root_handle = None
             self.current_root_path = "CHOOSE ROOT KEY"
@@ -433,13 +403,13 @@ UPN = "Administrator@192.168.1.2"
         subkey_path = self._join_path(self.current_subkey_path, subkey)
 
         # Enumerate the subkeys
-        logger.debug("Enumerating subkeys at %s", subkey_path)
+        log_runtime.debug("Enumerating subkeys at %s", subkey_path)
 
         try:
             subkeys = self.client.enum_subkeys(res.handle, timeout=self.timeout)
             self.cache["ls"][subkey_path].values.extend(subkeys)
         except ValueError as resp_exc:
-            logger.error(
+            log_runtime.error(
                 "Got status %s while enumerating keys", hex(int(resp_exc.args[0]))
             )
             c_elt = self.cache["ls"].pop(subkey_path, None)
@@ -506,12 +476,12 @@ UPN = "Administrator@192.168.1.2"
 
         subkey_path = self._join_path(self.current_subkey_path, subkey)
 
-        logger.debug("Enumerating values from the %s subkey", subkey_path)
+        log_runtime.debug("Enumerating values from the %s subkey", subkey_path)
         try:
             entries = self.client.enum_values(res.handle, timeout=self.timeout)
             self.cache["cat"][subkey_path].values.extend(entries)
         except ValueError as resp_exc:
-            logger.error(
+            log_runtime.error(
                 "got status %s while enumerating values", hex(int(resp_exc.args[0]))
             )
             c_elt = self.cache["cat"].pop(subkey_path, None)
@@ -605,7 +575,7 @@ UPN = "Administrator@192.168.1.2"
             self.current_subkey_path = tmp_path
             self.current_subkey_handle = tmp_handle
         else:
-            logger.error("Could not change directory to %s", subkey)
+            log_runtime.error("Could not change directory to %s", subkey)
             raise ValueError(f"Could not change directory to {subkey}")
 
         if self.expl_mode:
@@ -669,7 +639,7 @@ UPN = "Administrator@192.168.1.2"
             return None
 
         # Log and prepare request
-        logger.debug("Getting security descriptor for %s", subkey)
+        log_runtime.debug("Getting security descriptor for %s", subkey)
 
         try:
             sd = self.client.get_key_security(
@@ -677,7 +647,9 @@ UPN = "Administrator@192.168.1.2"
                 timeout=self.timeout,
             )
         except ValueError as resp_exc:
-            logger.error("Got status %s while getting security", hex(resp_exc.args[0]))
+            log_runtime.error(
+                "Got status %s while getting security", hex(resp_exc.args[0])
+            )
             return None
 
         return sd
@@ -719,15 +691,15 @@ UPN = "Administrator@192.168.1.2"
         # Try to use the cache
         handle = self._get_cached_elt(subkey)
         if handle is None:
-            logger.error("Could not get handle on the specified subkey.")
+            log_runtime.error("Could not get handle on the specified subkey.")
             return None
 
         # Log and request info
-        logger.debug("Querying info for %s", subkey)
+        log_runtime.debug("Querying info for %s", subkey)
         try:
             resp = self.client.get_key_info(handle, timeout=self.timeout)
         except ValueError as resp_exc:
-            logger.error(
+            log_runtime.error(
                 "Got status %s while querying info", hex(int(resp_exc.args[0]))
             )
             return None
@@ -769,7 +741,7 @@ Info on key:
         Get remote registry server version of the current subkey
         """
 
-        logger.debug("Getting remote registry server version")
+        log_runtime.debug("Getting remote registry server version")
         return self.client.get_version(
             self.current_subkey_handle, timeout=self.timeout
         ).lpdwVersion
@@ -824,7 +796,7 @@ Info on key:
         # Get the value type
         value_type = RegType.fromstr(value_type)
         if value_type == RegType.UNK:
-            logger.error("Unknown registry type: %s", value_type)
+            log_runtime.error("Unknown registry type: %s", value_type)
             raise ValueError(value_type)
 
         # Try to use the cache
@@ -832,7 +804,7 @@ Info on key:
             subkey=subkey, desired_access=0x20006  # KEY_WRITE
         )
         if handle is None:
-            logger.error("Could not get handle on the specified subkey.")
+            log_runtime.error("Could not get handle on the specified subkey.")
             return None
 
         if subkey is None:
@@ -845,7 +817,7 @@ Info on key:
             value_name = ""
 
         # Log and send request
-        logger.debug(
+        log_runtime.debug(
             "Setting value %s of type %s in %s",
             value_name,
             value_type.name,
@@ -885,7 +857,9 @@ Info on key:
                 )
 
         except ValueError as resp_exc:
-            logger.error("Got status %s while setting value", hex(resp_exc.args[0]))
+            log_runtime.error(
+                "Got status %s while setting value", hex(resp_exc.args[0])
+            )
             # We remove the entry from the cache if it exists
             # Even if the response status is not OK, we want to remove it
             if subkey_path in self.cache["cat"]:
@@ -993,7 +967,7 @@ Info on key:
             desired_access=0x4,  # KEY_CREATE_SUB_KEY
         )
         if handle is None:
-            logger.error("Could not get handle on the specified subkey.")
+            log_runtime.error("Could not get handle on the specified subkey.")
             return None
 
         if subkey is None:
@@ -1003,7 +977,7 @@ Info on key:
             subkey_path = self._join_path(subkey_path, new_key)
 
         # Log and send request
-        logger.debug("Creating key %s under %s", new_key, subkey_path)
+        log_runtime.debug("Creating key %s under %s", new_key, subkey_path)
 
         try:
             self.client.create_subkey(
@@ -1015,7 +989,9 @@ Info on key:
                 timeout=self.timeout,
             )
         except ValueError as resp_exc:
-            logger.error("Got status %s while creating key", hex(int(resp_exc.args[0])))
+            log_runtime.error(
+                "Got status %s while creating key", hex(int(resp_exc.args[0]))
+            )
             # We remove the entry from the cache if it exists
             # Even if the response status is not OK, we want to remove it
             if subkey_path.parent in self.cache["ls"]:
@@ -1065,7 +1041,7 @@ Info on key:
             subkey_path = self._join_path(self.current_subkey_path, subkey)
 
         # Log and prepare request
-        logger.debug("Deleting key %s", subkey_path)
+        log_runtime.debug("Deleting key %s", subkey_path)
         try:
             self.client.delete_subkey(
                 self.current_root_handle,
@@ -1073,7 +1049,9 @@ Info on key:
                 timeout=self.timeout,
             )
         except ValueError as resp_exc:
-            logger.error("Got status %s while deleting key", hex(int(resp_exc.args[0])))
+            log_runtime.error(
+                "Got status %s while deleting key", hex(int(resp_exc.args[0]))
+            )
             # Even if the response status is not OK, we want to remove it
             # the entry from the cache if it exists
             if subkey_path.parent in self.cache["ls"]:
@@ -1128,7 +1106,7 @@ Info on key:
             subkey=subkey, desired_access=0x20006  # KEY_WRITE
         )
         if handle is None:
-            logger.error("Could not get handle on the specified subkey.")
+            log_runtime.error("Could not get handle on the specified subkey.")
             return None
 
         # Determine the subkey path for logging and cache purposes
@@ -1138,7 +1116,7 @@ Info on key:
             subkey_path = self._join_path(self.current_subkey_path, subkey)
 
         # Log and prepare request
-        logger.debug("Deleting value %s in %s", value, subkey_path)
+        log_runtime.debug("Deleting value %s in %s", value, subkey_path)
 
         try:
             self.client.delete_value(
@@ -1147,7 +1125,7 @@ Info on key:
                 timeout=self.timeout,
             )
         except ValueError as resp_exc:
-            logger.error(
+            log_runtime.error(
                 "Got status %s while deleting value", hex(int(resp_exc.args[0]))
             )
             # Even if the response status is not OK, we want to remove it
@@ -1229,7 +1207,7 @@ Info on key:
         )
 
         if handle is None:
-            logger.error("Could not get handle on the specified subkey.")
+            log_runtime.error("Could not get handle on the specified subkey.")
             return None
 
         # Default path is %WINDIR%\System32
@@ -1249,7 +1227,7 @@ Info on key:
                 "Looks like you don't like security so much. "
                 "Hope you know what you are doing."
             )
-            logger.warning("Disabling security built-in protections while saving.")
+            log_runtime.warning("Disabling security built-in protections while saving.")
             sa = None
         else:
             sa = PRPC_SECURITY_ATTRIBUTES(
@@ -1262,14 +1240,14 @@ Info on key:
             sa.nLength = len(sa)
 
         # Log and prepare request
-        logger.debug("Backing up %s to %s", key_to_save, output_path)
+        log_runtime.debug("Backing up %s to %s", key_to_save, output_path)
         self.client.save_subkey(
             key_handle=handle,
             file_path=output_path,
             security_attributes=sa,
         )
 
-        logger.info(
+        log_runtime.info(
             "Backup of %s saved to %s.reg successful ",
             self.current_subkey_path,
             output_path,
@@ -1294,12 +1272,12 @@ Info on key:
         # check if backup privilege is already enabled
         if self.extra_options & RegOptions.REG_OPTION_BACKUP_RESTORE and not activate:
             self.extra_options &= ~RegOptions.REG_OPTION_BACKUP_RESTORE
-            logger.debug("Backup option disabled")
+            log_runtime.debug("Backup option disabled")
         else:
             self.extra_options |= RegOptions.REG_OPTION_BACKUP_RESTORE
 
             # Log and print
-            logger.debug("Backup option activated.")
+            log_runtime.debug("Backup option activated.")
             print("Backup option activated.")
 
             # Clear the local cache, as the backup option
@@ -1319,7 +1297,7 @@ Info on key:
             self.use(self.current_root_path)
 
             # Log and print
-            logger.debug("Volatile option activated.")
+            log_runtime.debug("Volatile option activated.")
             print("Volatile option activated.")
 
             self.clear_all_caches()
@@ -1329,7 +1307,7 @@ Info on key:
             self.use(self.current_root_path)
 
             # Log and print
-            logger.debug("Volatile option deactivated.")
+            log_runtime.debug("Volatile option deactivated.")
             print("Volatile option deactivated.")
 
             self.clear_all_caches()
@@ -1374,7 +1352,7 @@ Info on key:
                 timeout=self.timeout,
             )
         except ValueError as resp_exc:
-            logger.error(
+            log_runtime.error(
                 "Got status %s while getting handle on key: %s",
                 hex(int(resp_exc.args[0])),
                 subkey_path,
@@ -1436,7 +1414,7 @@ Info on key:
         # Otherwise, we need to get a new handle on the subkey
         handle = self.get_handle_on_subkey(subkey_path, desired_access)
         if handle is None:
-            logger.error("Could not get handle on %s", subkey_path)
+            log_runtime.error("Could not get handle on %s", subkey_path)
             return None
 
         # If we have a cache name, we store the handle in the cache
@@ -1496,11 +1474,13 @@ Info on key:
     def _close_key(self, handle: NDRContextHandle) -> bool | None:
 
         # Log and close
-        logger.debug("Closing hKey %s - %s", handle.uuid, handle.uuid.hex())
+        log_runtime.debug("Closing hKey %s - %s", handle.uuid, handle.uuid.hex())
         try:
             self.client.close_key(handle, timeout=self.timeout)
         except ValueError as resp_exc:
-            logger.error("Got status %s while closing key", hex(int(resp_exc.args[0])))
+            log_runtime.error(
+                "Got status %s while closing key", hex(int(resp_exc.args[0]))
+            )
             return None
 
         return True
@@ -1522,9 +1502,7 @@ Info on key:
         Joker function to jump into the python code for dev purpose
         """
 
-        logger.info("Jumping into the code for dev purpose...")
-        # pylint: disable=forgotten-debug-statement, pointless-statement
-        # pylint: disable=import-outside-toplevel, unused-import
+        log_runtime.info("Jumping into the code for dev purpose...")
         from IPython import embed  # noqa: F401
 
         print("[!] For a better experience type: embed()")
