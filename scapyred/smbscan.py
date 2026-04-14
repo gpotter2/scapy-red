@@ -13,6 +13,7 @@ import socket
 
 from scapy.automaton import ATMT
 from scapy.base_classes import Net
+from scapy.config import conf
 from scapy.error import warning
 from scapy.layers.netbios import NBTSession
 from scapy.layers.ntlm import NTLM_CHALLENGE
