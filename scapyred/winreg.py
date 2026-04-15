@@ -1503,9 +1503,9 @@ Info on key:
         """
 
         log_runtime.info("Jumping into the code for dev purpose...")
-        from IPython import embed  # noqa: F401
-
-        print("[!] For a better experience type: embed()")
+        print("""[!] For a better experience type:
+from IPython import embed
+embed()""")
         breakpoint()
 
 
