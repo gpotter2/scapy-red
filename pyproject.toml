@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "setuptools>=77.0.0",
-    "scapy>=2.7.0rc1",
+    "scapy>=2.7.1rc1",
     "scapy-rpc>=0.0.7",
 ]
 build-backend = "setuptools.build_meta"
@@ -18,7 +18,7 @@ requires-python = ">=3.11, <4"
 description = "Scapy RED - tools and scripts for pentesters"
 keywords = [ "network" ]
 dependencies = [
-    "scapy>=2.7.0rc1",
+    "scapy>=2.7.1rc1",
     "scapy-rpc>=0.0.7",
 ]
 classifiers = [
