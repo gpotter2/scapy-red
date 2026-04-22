@@ -1,0 +1,239 @@
+% Tests for the winreg module in scapy-red
+
+# More information at http://www.secdev.org/projects/UTscapy/
+
+############
+# WinReg
+############
+
++ WinReg tests
+
+= WinReg - Initialize client
+
+from scapyred.winreg import RegClient
+from scapy.layers.windows.registry import RegEntry, RegType
+from scapy.layers.windows.security import SECURITY_DESCRIPTOR
+from pathlib import PureWindowsPath
+
+
+client = RegClient(
+    "127.0.0.1",
+    UPN="Admin@WORKGROUP",
+    password="HolaQuetal123",
+    domain="Workgroup",
+    kerberos=False,
+    cli=False,
+    debug=True,
+)
+assert client.client is not None
+assert isinstance(client, RegClient)
+
+= WinReg - Test use method of RegClient
+
+# Test with valid root keys
+for root_key in ["HKLM", "HKCU", "HKCR", "HKU", "HKCC"]:
+    result = client.use(root_key)
+    print(f"Switched to root key: {root_key} with result: {result}")
+    assert result is not None
+
+# Test with an invalid root key
+try:
+    client.use("HKEY_INVALID")
+    assert False, "use should have failed !"
+except ValueError:
+    pass
+
+# Return the client for further tests
+client.use("HKLM")
+
+= WinReg - Test cd method of RegClient
+
+# Change to a valid subkey
+result = client.cd("\\SOFTWARE\\Microsoft\\Windows\\")
+result = client.cd("..")
+result = client.cd("Windows\\CurrentVersion")
+result = client.cd("\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion")
+print(
+    f"Changed directory to SOFTWARE\\Microsoft\\Windows\\CurrentVersion with result: {result}"
+)
+assert client.current_subkey_path == PureWindowsPath(
+    "SOFTWARE/Microsoft/Windows/CurrentVersion"
+)
+
+# Attempt to change to an invalid subkey
+try:
+    client.cd("SOFTWARE\\NonExistentKey")
+    assert False, "cd should have failed !"
+except ValueError:
+    pass
+
+client.cd("")
+
+= WinReg - Test ls method of RegClient
+
+# List subkeys and values in the current directory
+list_of_first_subkeys = client.ls()
+
+assert set(list_of_first_subkeys).issuperset(
+    {
+        "BCD00000000",
+        "HARDWARE",
+        "SAM",
+        "SECURITY",
+        "SOFTWARE",
+        "SYSTEM",
+    }
+)
+
+list_of_subkeys = client.ls("SOFTWARE\\Microsoft\\Windows NT")
+assert "CurrentVersion" in list_of_subkeys
+
+= WinReg - Test cat method of RegClient
+
+# Read a known registry value
+value_data: list[RegEntry] = client.cat(
+    "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"
+)
+assert len(value_data) > 30  # Expecting multiple values
+registered_owner = next(
+    (
+        entry
+        for entry in value_data
+        if entry.reg_name == "CurrentMajorVersionNumber"
+    ),
+    None,
+)
+display_version = next(
+    (entry for entry in value_data if entry.reg_name == "SystemRoot"), None
+)
+edition_id = next(
+    (entry for entry in value_data if entry.reg_name == "EditionID"), None
+)
+assert all(
+    [
+        registered_owner is not None,
+        display_version is not None,
+        edition_id is not None,
+    ]
+)
+
+= WinReg - Test retrieving a security descriptor from the registry
+
+sd = client.get_sd("SAM")
+assert isinstance(sd, SECURITY_DESCRIPTOR)
+
+sd = client.get_sd("SECURITY")
+assert sd is None
+
+client.backup(activate=True)
+sd = client.get_sd("SECURITY")
+assert isinstance(sd, SECURITY_DESCRIPTOR)
+
+= WinReg - Test querying information about a registry key.
+
+info = client.query_info()
+assert info is not None
+assert info.lpcSubKeys >= 6
+assert info.lpcbMaxSubKeyLen >= 22
+assert info.lpftLastWriteTime is not None
+
+= WinReg - Test retrieving the Windows version from the registry.
+
+version = client.version()
+assert version == 6
+
+= WinReg - Test creating / deleting a registry key
+
+# Create a new key
+client.create_key("ScapyRedTestKey", "SOFTWARE")
+subkeys = client.ls("SOFTWARE")
+assert "ScapyRedTestKey" in subkeys
+client.delete_key("SOFTWARE\\ScapyRedTestKey")
+subkeys = client.ls("SOFTWARE")
+assert "ScapyRedTestKey" not in subkeys
+client.create_key("ScapyRedTestKey", "SOFTWARE")
+
+= WinReg - Test setting and getting a registry value
+
+# Set a value in the created key
+reg_entry = [
+    RegEntry(
+        reg_name="ScapyValueSZ",
+        reg_type=RegType(1),  # REG_SZ
+        reg_data="ScapyRedTestData",
+    ),
+    RegEntry(
+        reg_name="ScapyValueExpandSz",
+        reg_type=RegType(2),  # REG_EXPAND_SZ
+        reg_data="%SystemRoot%\\System32",
+    ),
+    RegEntry(
+        reg_name="ScapyValueBinary",
+        reg_type=RegType(3),  # REG_BINARY
+        reg_data=b"\xde\xad\xbe\xef",
+    ),
+    RegEntry(
+        reg_name="ScapyValueDword",
+        reg_type=RegType(4),  # REG_DWORD
+        reg_data=99,
+    ),
+    RegEntry(
+        reg_name="ScapyValueDwordBigEndian",
+        reg_type=RegType(5),  # REG_DWORD_BIG_ENDIAN
+        reg_data=654321,
+    ),
+    RegEntry(
+        reg_name="ScapyValueLink",
+        reg_type=RegType(6),  # REG_LINK
+        reg_data="\\??\\C:\\Windows\\System32",
+    ),
+    RegEntry(
+        reg_name="ScapyValueMultiSz",
+        reg_type=RegType(7),  # REG_MULTI_SZ
+        reg_data=["String1", "String2", "String3"],
+    ),
+    RegEntry(
+        reg_name="ScapyValueQword",
+        reg_type=RegType(11),  # REG_QWORD
+        reg_data=123456789012345,
+    ),
+]
+
+client.backup(activate=True)
+for entry in reg_entry:
+    print(entry.reg_data)
+    client.set_value(
+        entry.reg_name,
+        entry.reg_type,
+        entry.reg_data,
+        subkey="SOFTWARE\\ScapyRedTestKey",
+    )
+
+assert len(client.cat("SOFTWARE\\ScapyRedTestKey")) == len(reg_entry)
+for entry in client.cat("SOFTWARE\\ScapyRedTestKey"):
+    matching_entry = next(
+        (e for e in reg_entry if e.reg_name == entry.reg_name), None
+    )
+    assert matching_entry is not None
+    assert matching_entry.reg_type == entry.reg_type
+    assert matching_entry.reg_data == entry.reg_data
+
+
+= WinReg - Test the value deletion
+
+cat = client.cat("SOFTWARE\\ScapyRedTestKey")
+value_sz = RegEntry(
+    reg_name="ScapyValueSZ",
+    reg_type=RegType(1),  # REG_SZ
+    reg_data="ScapyRedTestData",
+)
+
+assert value_sz in cat
+client.delete_value(value=value_sz.reg_name, subkey="SOFTWARE\\ScapyRedTestKey")
+cat = client.cat("SOFTWARE\\ScapyRedTestKey")
+assert value_sz not in cat
+
+
+= WinReg - Test saving registry key
+
+assert client.save(output_path="C:\\", subkey="SOFTWARE")
