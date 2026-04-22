@@ -1,6 +1,6 @@
 {
   "testfiles": [
-    "tests/*.uts",
+    "tests/*.uts"
   ],
   "breakfailed": true,
   "onlyfailed": true
