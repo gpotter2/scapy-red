@@ -606,7 +606,7 @@ UPN = "Administrator@192.168.1.2"
     @CLIUtil.addcommand()
     def exploration_mode(self) -> None:
         """
-        Activate / Desactivate exploration mode: perform ls and cat
+        Activate / Deactivate exploration mode: perform ls and cat
         automatically when changing directory
         """
 
@@ -1273,6 +1273,7 @@ Info on key:
         if self.extra_options & RegOptions.REG_OPTION_BACKUP_RESTORE and not activate:
             self.extra_options &= ~RegOptions.REG_OPTION_BACKUP_RESTORE
             log_runtime.debug("Backup option disabled")
+            print("Backup option disabled.")
         else:
             self.extra_options |= RegOptions.REG_OPTION_BACKUP_RESTORE
 
