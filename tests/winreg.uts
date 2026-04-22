@@ -25,6 +25,9 @@ client = RegClient(
 assert client.client is not None
 assert isinstance(client, RegClient)
 
+# Check that it's properly mounted !
+client.use("HKLM")
+
 = WinReg - Test use method of RegClient
 
 # Test with valid root keys
