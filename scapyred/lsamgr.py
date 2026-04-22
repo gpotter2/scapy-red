@@ -133,9 +133,9 @@ def lsamgr(
     policyHandle = res.PolicyHandle
 
     if action == "enumerate":
-        #####################
-        ##### ENUMERATE #####
-        #####################
+        #############
+        # ENUMERATE #
+        #############
 
         results_rights = []
         for right in LSAD_RIGHTS:
@@ -149,7 +149,7 @@ def lsamgr(
 
             res = client.sr1_req(pkt)
             if (
-                not LsarEnumerateAccountsWithUserRight_Response in res
+                LsarEnumerateAccountsWithUserRight_Response not in res
                 or res.status not in [0, 0x8000001A]
             ):
                 print("Failed :(")
@@ -171,9 +171,9 @@ def lsamgr(
                 print(f" - {res}")
 
     elif action == "add":
-        #####################
-        ######## ADD ########
-        #####################
+        #######
+        # ADD #
+        #######
 
         pkt = LsarAddAccountRights_Request(
             PolicyHandle=policyHandle,
@@ -184,14 +184,14 @@ def lsamgr(
         )
 
         res = client.sr1_req(pkt)
-        if not LsarAddAccountRights_Response in res or res.status != 0:
+        if LsarAddAccountRights_Response not in res or res.status != 0:
             return
         res.show()
 
     elif action == "delete":
-        #####################
-        ###### DELETE #######
-        #####################
+        ##########
+        # DELETE #
+        ##########
 
         pkt = LsarRemoveAccountRights_Request(
             PolicyHandle=policyHandle,
@@ -203,7 +203,7 @@ def lsamgr(
         pkt.show2()
 
         res = client.sr1_req(pkt)
-        if not LsarRemoveAccountRights_Response in res or res.status != 0:
+        if LsarRemoveAccountRights_Response not in res or res.status != 0:
             return
         res.show()
 
