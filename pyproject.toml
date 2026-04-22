@@ -44,7 +44,6 @@ Changelog = "https://github.com/secdev/scapy-red/releases"
 
 [project.optional-dependencies]
 tests = [
-    # "scapy@git+https://github.com/secdev/scapy.git#sha1=667dd9439411210fa6ce17aa0930cefc384ef977"
     "scapy@git+https://github.com/secdev/scapy.git"
 ]
 
