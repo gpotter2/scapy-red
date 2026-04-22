@@ -11,17 +11,14 @@
 = WinReg - Initialize client
 
 from scapyred.winreg import RegClient
+from scapy.arch.windows.sspi import WinSSP
 from scapy.layers.windows.registry import RegEntry, RegType
 from scapy.layers.windows.security import SECURITY_DESCRIPTOR
 from pathlib import PureWindowsPath
 
-
 client = RegClient(
     "127.0.0.1",
-    UPN="Admin@WORKGROUP",
-    password="HolaQuetal123",
-    domain="Workgroup",
-    kerberos=False,
+    ssp=WinSSP(),
     cli=False,
     debug=True,
 )
