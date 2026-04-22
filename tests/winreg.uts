@@ -237,3 +237,7 @@ assert value_sz not in cat
 = WinReg - Test saving registry key
 
 assert client.save(output_path="C:\\", subkey="SOFTWARE")
+
+= WinReg - Close client
+
+client.close()
