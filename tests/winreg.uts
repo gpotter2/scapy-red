@@ -35,6 +35,8 @@ for root_key in ["HKLM", "HKCU", "HKCR", "HKU", "HKCC"]:
     result = client.use(root_key)
     print(f"Switched to root key: {root_key} with result: {result}")
     assert result is not None
+    print(result.ls())
+assert False
 
 # Test with an invalid root key
 try:
