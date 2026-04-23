@@ -21,6 +21,7 @@ dependencies = [
     "scapy>=2.7.1rc1",
     "scapy-rpc>=0.0.7",
     "cryptography>=46.0.7",
+    "prompt_toolkit",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
