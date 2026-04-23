@@ -86,4 +86,4 @@ jobs:
         # Run unit tests
         - name: Run unit tests
           run: |
-            python3 -m scapy.tools.UTscapy -c tests/config.utsc
+            python3 -m scapy.tools.UTscapy -c tests/config.utsc -f live
