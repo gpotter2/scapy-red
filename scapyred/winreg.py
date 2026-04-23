@@ -187,7 +187,7 @@ class RegClient(CLIUtil):
         use_krb5ccname: bool = False,
         port: int = 445,
         timeout: int = 2,
-        debug: bool = False,
+        debug: int = 0,
         ssp=None,
         cli=True,
         rootKey: str = None,
@@ -218,7 +218,7 @@ class RegClient(CLIUtil):
         self.client = RRP_Client(
             auth_level=RPC_C_AUTHN_LEVEL.PKT_PRIVACY,
             ssp=ssp,
-            verb=debug,
+            verb=bool(debug),
         )
         if debug:
             log_runtime.setLevel(logging.DEBUG)
@@ -233,7 +233,11 @@ class RegClient(CLIUtil):
 
         self.timeout = timeout
         try:
-            self.client.connect(target, timeout=self.timeout)
+            self.client.connect(
+                target,
+                timeout=self.timeout,
+                smb_kwargs={"debug": debug},
+            )
             self.client.bind()
         except ValueError as exc:
             log_runtime.warning(f"""
@@ -242,7 +246,11 @@ class RegClient(CLIUtil):
                 """)
 
             sleep(2)
-            self.client.connect(target, timeout=self.timeout)
+            self.client.connect(
+                target,
+                timeout=self.timeout,
+                smb_kwargs={"debug": debug},
+            )
             self.client.bind()
         except Scapy_Exception as exc:
             if str(3221225566) in str(exc):
