@@ -161,6 +161,12 @@ class RegClient(CLIUtil):
     :param kerberos_required: require kerberos
     :param port: the TCP port. default 445
     :param HashNt: (bytes) if provided, used for auth (NTLM)
+    :param HashAes256Sha96: if provided, used for auth (Kerberos)
+    :param HashAes128Sha96: if provided, used for auth (Kerberos)
+    :param use_krb5ccname: (bool) if true, the KRB5CCNAME environment variable will
+                            be used if available.
+    :param use_winssp: (bool) (only works on Windows). Use implicit authentication
+                        through WinSSP.
     :param ST: if provided, the service ticket to use (Kerberos)
     :param KEY: if provided, the session key associated to the ticket (Kerberos)
     :param cli: CLI mode (default True). False to use for scripting
@@ -185,6 +191,7 @@ class RegClient(CLIUtil):
         HashAes128Sha96: str = None,
         HashAes256Sha96: str = None,
         use_krb5ccname: bool = False,
+        use_winssp: bool = False,
         port: int = 445,
         timeout: int = 2,
         debug: int = 0,
@@ -199,7 +206,7 @@ class RegClient(CLIUtil):
         if cli:
             self._depcheck()
 
-        assert UPN or ssp, "Either UPN or ssp must be provided !"
+        assert UPN or ssp or use_winssp, "Either UPN or ssp must be provided !"
         # Do we need to build a SSP?
         if ssp is None:
             # Create the SSP
@@ -212,6 +219,7 @@ class RegClient(CLIUtil):
                 HashAes128Sha96=HashAes128Sha96,
                 kerberos_required=kerberos_required,
                 use_krb5ccname=use_krb5ccname,
+                use_winssp=use_winssp,
             )
 
         # Create RRP client
@@ -240,10 +248,12 @@ class RegClient(CLIUtil):
             )
             self.client.bind()
         except ValueError as exc:
-            log_runtime.warning(f"""
+            log_runtime.warning(
+                f"""
                 Remote service didn't seem to be running.
                 Let's try again in 2", now that we should have trigger it. ({exc})
-                """)
+                """
+            )
 
             sleep(2)
             self.client.connect(
@@ -254,7 +264,8 @@ class RegClient(CLIUtil):
             self.client.bind()
         except Scapy_Exception as exc:
             if str(3221225566) in str(exc):
-                log_runtime.error(f"""
+                log_runtime.error(
+                    f"""
 [!] STATUS_LOGON_FAILURE - {exc}  You used:
     - UPN {UPN},
     - password {password},
@@ -269,7 +280,8 @@ class RegClient(CLIUtil):
 UPN = "WORKGROUP\\\\Administrator" or
 UPN = "Administrator@WORKGROUP" or
 UPN = "Administrator@192.168.1.2"
-""")
+"""
+                )
             raise exc
         except TimeoutError as exc:
             log_runtime.error(
@@ -724,7 +736,8 @@ UPN = "Administrator@192.168.1.2"
             print("No information found.")
             return
         class_info = info.valueof("lpClassOut.Buffer")
-        print(f"""
+        print(
+            f"""
 Info on key:
   - Number of subkeys: {info.lpcSubKeys}
   - Length of the longest subkey name (in bytes): {info.lpcbMaxSubKeyLen}
@@ -734,7 +747,8 @@ Info on key:
   - Class: {bytes.fromhex(class_info[:-1].decode())
             if class_info is not None
             else "None"}
-""")
+"""
+        )
 
     @CLIUtil.addcomplete(query_info)
     def query_info_complete(self, subkey: str) -> list[str]:
@@ -1512,9 +1526,11 @@ Info on key:
         """
 
         log_runtime.info("Jumping into the code for dev purpose...")
-        print("""[!] For a better experience type:
+        print(
+            """[!] For a better experience type:
 from IPython import embed
-embed()""")
+embed()"""
+        )
         breakpoint()
 
 
