@@ -10,6 +10,8 @@ import collections
 import dataclasses
 import enum
 import json
+import mimetypes
+import pathlib
 import queue
 import socket
 
@@ -212,10 +214,25 @@ class HTTP_Management(HTTP_Server):
                     Reason_Phrase=b"Invalid Request",
                 )
         else:
+            # Try to serve a static file from the compiled webapp
+            web_dist = pathlib.Path(__file__).parent / "web_dist"
+            rel = pkt.Path.lstrip(b"/") or b"index.html"
+            try:
+                fpath = (web_dist / rel.decode()).resolve()
+                # Prevent path traversal outside web_dist
+                fpath.relative_to(web_dist.resolve())
+                if fpath.is_file():
+                    mime = mimetypes.guess_type(str(fpath))[0] or "application/octet-stream"
+                    return HTTPResponse(
+                        Content_Type=mime,
+                        Access_Control_Allow_Origin="*",
+                    ) / fpath.read_bytes()
+            except (ValueError, UnicodeDecodeError):
+                pass
             return HTTPResponse(
                 Status_Code=b"404",
                 Reason_Phrase=b"Not Found",
-            ) / ("<!doctype html><html><body><h1>404 - Not Found</h1></body></html>")
+            ) / "<!doctype html><html><body><h1>404 - Not Found</h1></body></html>"
 
 
 ##############################
