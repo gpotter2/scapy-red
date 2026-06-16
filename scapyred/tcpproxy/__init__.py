@@ -31,8 +31,8 @@ from typing import Any
 
 class PeerState(enum.IntEnum):
     FORWARD = 1
-    REDIRECT_NEXT_CONNECTION = 2
-    REDIRECT_NEXT_PACKET = 3
+    REDIRECT_PERMANENT = 2
+    REDIRECT_ONCE = 3
 
 
 @dataclasses.dataclass
@@ -57,6 +57,12 @@ class ProxyFwdMachine(ForwardMachine):
         self.events = queue.Queue()
         super(ProxyFwdMachine, self).__init__(*args, **kwargs)
 
+    def sendEv(self, event) -> None:
+        """
+        Send an event to the frontend
+        """
+        self.events.put(event)
+
     class CONTEXT(ForwardMachine.CONTEXT):
         """
         CONTEXT is created on each TCP session
@@ -65,21 +71,63 @@ class ProxyFwdMachine(ForwardMachine):
         def __init__(self, fwdm, addr, dest):
             self.fwdm = fwdm
             self.peer = fwdm.peers[addr[0]]
-            self.firstpkt = True
+            self.redirected = False
             super(ProxyFwdMachine.CONTEXT, self).__init__(fwdm, addr, dest)
+
+    def vprint(self, evt, ctx, cs, req, rep):
+        """
+        This is called by the ForwardMachine on each event.
+        """
+        src, dst = (repr(ctx.addr), repr(ctx.dest)) if cs else (repr(ctx.dest), repr(ctx.addr))
+        ev_type = "client" if cs else "server"
+
+        if evt == self.FORWARD:
+            text = f"{src} ==> {dst}: {req.summary()}"
+        elif evt == self.FORWARD_REPLACE:
+            text = f"{src} /=> {dst}: {req.summary()} -> {rep.summary()}"
+        elif evt == self.DROP:
+            text = f"{src} => 0: {req.summary()}"
+        elif evt == self.ANSWER:
+            text = f"{src} <=| : {req.summary()} -> {rep.summary()}"
+        elif evt == self.REDIRECT_TO:
+            ev_type = "special"
+            text = f"{src} was redirected from {repr(req)} to {repr(rep)}"
+        elif evt == self.ERROR:
+            ev_type = "error"
+            text = f"ERROR: {src} {req}"
+        else:
+            return
+
+        self.sendEv({"type": ev_type, "peer": ctx.addr[0], "text": text})
+
+    def newconn(self, ctx):
+        """
+        New connection is established
+        """
+        self.sendEv({"type": "newpeer", "peer": ctx.addr[0]})
+
+    def delconn(self, ctx):
+        """
+        Connection is deleted.
+        """
+        self.sendEv({"type": "deadpeer", "peer": ctx.addr[0]})
 
     def xfrmcs(self, pkt, ctx):
         """
         Client -> Server
         """
-        if ctx.peer.state == PeerState.REDIRECT_NEXT_CONNECTION and self.firstpkt:
-            ctx.peer.state = PeerState.FORWARD
-            raise self.REDIRECT_TO(host=self.redirect_host, port=self.redirect_port)
-        elif ctx.peer.state == PeerState.REDIRECT_NEXT_PACKET:
-            ctx.peer.state = PeerState.FORWARD
-            raise self.REDIRECT_TO(host=self.redirect_host, port=self.redirect_port)
-        elif ctx.peer.state == PeerState.FORWARD:
+        if ctx.peer.state == PeerState.FORWARD:
             raise self.FORWARD()
+        elif ctx.peer.state == PeerState.REDIRECT_PERMANENT:
+            if ctx.redirected:
+                raise self.FORWARD()
+            else:
+                ctx.redirected = True
+                raise self.REDIRECT_TO(host=ctx.peer.redirect_host, port=ctx.peer.redirect_port)
+        elif ctx.peer.state == PeerState.REDIRECT_ONCE:
+            ctx.redirected = True
+            ctx.peer.state = PeerState.FORWARD
+            raise self.REDIRECT_TO(host=ctx.peer.redirect_host, port=ctx.peer.redirect_port)
         else:
             raise ValueError
 
@@ -114,6 +162,15 @@ class HTTP_Management(HTTP_Server):
         :param pkt: a HTTPRequest packet
         :returns: a HTTPResponse packet
         """
+        if pkt.Method == b"OPTIONS":
+            return HTTPResponse(
+                Status_Code=b"200",
+                Reason_Phrase=b"OK",
+                Access_Control_Allow_Origin="*",
+                Access_Control_Allow_Methods="POST, GET, OPTIONS",
+                Access_Control_Allow_Headers="*",
+            )
+
         if pkt.Path == b"/getpeers" and pkt.Method == b"GET":
             # Get the list of currently connected peers and their status.
             return self.rep_json(
@@ -219,7 +276,7 @@ def tcpproxy(
         local_ip="127.0.0.1",
         fwdm=fwdm,
         bg=True,
-        debug=4,
+        verb=False,
     )
 
     try:

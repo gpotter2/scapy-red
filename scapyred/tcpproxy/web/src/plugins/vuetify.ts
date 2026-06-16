@@ -12,8 +12,14 @@ import '@mdi/font/css/materialdesignicons.css'
 import 'vuetify/styles'
 
 // https://vuetifyjs.com/en/introduction/why-vuetify/#feature-guides
+const goldSecondary = { secondary: '#D4A017' }
+
 export default createVuetify({
   theme: {
     defaultTheme: 'system',
+    themes: {
+      light: { colors: goldSecondary },
+      dark:  { colors: goldSecondary },
+    },
   },
 })
