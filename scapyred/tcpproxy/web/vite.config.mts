@@ -18,15 +18,15 @@ export default defineConfig({
       },
     }),
     Fonts({
-      fontsource: {
-        families: [
-          {
-            name: 'Roboto',
-            weights: [100, 300, 400, 500, 700, 900],
-            styles: ['normal', 'italic'],
-          },
-        ],
-      },
+      // fontsource: {
+      //   families: [
+      //     {
+      //       name: 'Roboto',
+      //       weights: [100, 300, 400, 500, 700, 900],
+      //       styles: ['normal', 'italic'],
+      //     },
+      //   ],
+      // },
     }),
   ],
   define: { 'process.env': {} },

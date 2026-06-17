@@ -4,17 +4,17 @@
             <span class="text-h6 font-weight-bold">Events</span>
             <v-spacer />
             <v-chip size="small" :color="connected ? 'success' : 'error'"
-                :prepend-icon="connected ? 'mdi-circle' : 'mdi-circle-off-outline'" label class="mr-2">
+                :prepend-icon="connected ? mdiCircle : mdiCircleOffOutline" label class="mr-2">
                 {{ connected ? 'Live' : 'Disconnected' }}
             </v-chip>
-            <v-btn icon="mdi-delete-sweep" size="small" variant="text" title="Clear events" @click="events = []" />
+            <v-btn :icon="mdiDeleteSweep" size="small" variant="text" title="Clear events" @click="events = []" />
         </v-card-title>
 
         <v-divider />
 
         <v-card-text ref="scrollContainer" class="flex-grow-1 overflow-y-auto pa-3 fill-height">
             <div v-if="filteredEvents.length === 0" class="text-center text-medium-emphasis py-8">
-                <v-icon icon="mdi-broadcast-off" size="48" class="mb-2 d-block mx-auto" />
+                <v-icon :icon="mdiBroadcastOff" size="48" class="mb-2 d-block mx-auto" />
                 Waiting for events…
             </div>
 
@@ -33,6 +33,7 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { usePeerFilter } from '@/composables/usePeerFilter'
+import { mdiCircle, mdiCircleOffOutline, mdiDeleteSweep, mdiBroadcastOff } from '@mdi/js'
 
 const API_BASE = 'http://127.0.0.1:8888'
 
@@ -71,10 +72,9 @@ async function scrollToBottom(): Promise<void> {
     }
 }
 
-async function pollLoop(): Promise<void> {
-    running = true
-    while (running) {
-        abortController = new AbortController()
+async function pollEvent(): Promise<void> {
+    abortController = new AbortController();
+    while (!abortController.signal.aborted) {
         try {
             const res = await fetch(`${API_BASE}/event`, { signal: abortController.signal })
             connected.value = res.ok
@@ -84,24 +84,27 @@ async function pollLoop(): Promise<void> {
                     if (event.type === 'newpeer') {
                         setPeerOnline(event.peer)
                         triggerRefresh()
-                        continue
-                    }
-                    if (event.type === 'deadpeer') {
+                    } else if (event.type === 'deadpeer') {
                         setPeerOffline(event.peer)
-                        continue
-                    }
-                    if (event.peer && !isPeerKnown(event.peer)) {
+                    } else if (event.type === 'peerstatus') {
                         triggerRefresh()
+                    } else {
+                        // Normal text event
+                        if (event.peer && !isPeerKnown(event.peer)) {
+                            triggerRefresh()
+                        }
+                        events.value.push({
+                            text: event.text ?? '',
+                            type: event.type as EventEntry['type'],
+                            peer: event.peer ?? '',
+                            time: formatTime(new Date()),
+                        })
+                        await scrollToBottom()
                     }
-                    events.value.push({
-                        text: event.text ?? '',
-                        type: event.type as EventEntry['type'],
-                        peer: event.peer ?? '',
-                        time: formatTime(new Date()),
-                    })
-                    await scrollToBottom()
                     // event received – loop immediately for next one
-                    continue
+                } else {
+                    // Wait 100ms
+                    await new Promise<void>((resolve) => setTimeout(resolve, 1000))
                 }
             }
         } catch (err: unknown) {
@@ -114,7 +117,7 @@ async function pollLoop(): Promise<void> {
 }
 
 onMounted(() => {
-    pollLoop()
+    pollEvent()
 })
 
 onUnmounted(() => {

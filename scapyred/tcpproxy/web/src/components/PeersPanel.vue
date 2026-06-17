@@ -3,9 +3,9 @@
         <v-card-title class="d-flex align-center pa-4 pb-2">
             <span class="text-h6 font-weight-bold">Peers</span>
             <v-spacer />
-            <v-btn icon="mdi-checkbox-multiple-marked" size="small" variant="text" title="Select all"
+            <v-btn :icon="mdiCheckboxMultipleMarked" size="small" variant="text" title="Select all"
                 @click="selectAll" />
-            <v-btn icon="mdi-checkbox-multiple-blank-outline" size="small" variant="text" title="Deselect all"
+            <v-btn :icon="mdiCheckboxMultipleBlankOutline" size="small" variant="text" title="Deselect all"
                 @click="deselectAll" />
         </v-card-title>
 
@@ -13,13 +13,13 @@
 
         <v-card-text class="flex-grow-1 overflow-y-auto pa-3">
             <div v-if="Object.keys(peers).length === 0" class="text-center text-medium-emphasis py-8">
-                <v-icon icon="mdi-lan-disconnect" size="48" class="mb-2 d-block mx-auto" />
+                <v-icon :icon="mdiLanDisconnect" size="48" class="mb-2 d-block mx-auto" />
                 No peers connected
             </div>
 
             <v-card v-for="(peer, ip) in peers" :key="ip" class="mb-3 position-relative" variant="outlined" rounded="lg">
                 <v-icon
-                    :icon="isPeerOnline(String(ip)) ? 'mdi-circle' : 'mdi-circle-outline'"
+                    :icon="isPeerOnline(String(ip)) ? mdiCircle : mdiCircleOutline"
                     :color="isPeerOnline(String(ip)) ? 'success' : 'error'"
                     :title="isPeerOnline(String(ip)) ? 'Online' : 'Offline'"
                     size="10"
@@ -49,15 +49,15 @@
                 </v-card-item>
 
                 <v-card-actions class="px-3 pt-0 pb-3 flex-wrap gap-1">
-                    <v-btn size="small" color="success" variant="tonal" prepend-icon="mdi-arrow-right"
+                    <v-btn size="small" color="success" variant="tonal" :prepend-icon="mdiArrowRight"
                         :disabled="peer.state === PeerState.FORWARD" @click="setForward(String(ip))">
                         Forward
                     </v-btn>
-                    <v-btn size="small" color="warning" variant="tonal" prepend-icon="mdi-swap-horizontal"
+                    <v-btn size="small" color="warning" variant="tonal" :prepend-icon="mdiSwapHorizontal"
                         @click="openRedirectDialog(String(ip), PeerState.REDIRECT_PERMANENT)">
                         Permanent Redirect
                     </v-btn>
-                    <v-btn size="small" color="info" variant="tonal" prepend-icon="mdi-package-variant"
+                    <v-btn size="small" color="info" variant="tonal" :prepend-icon="mdiPackageVariant"
                         @click="openRedirectDialog(String(ip), PeerState.REDIRECT_ONCE)">
                         Temporary Redirect
                     </v-btn>
@@ -70,7 +70,7 @@
     <v-dialog v-model="dialogOpen" max-width="420" :persistent="true">
         <v-card rounded="lg">
             <v-card-title class="pa-4 pb-2">
-                <v-icon icon="mdi-swap-horizontal" class="mr-2" />
+                <v-icon :icon="mdiSwapHorizontal" class="mr-2" />
                 Set Redirection
             </v-card-title>
             <v-card-subtitle class="px-4 pb-2">
@@ -85,10 +85,10 @@
 
             <v-card-text class="pa-4">
                 <v-text-field v-model="redirectHost" label="Host" placeholder="192.168.1.100"
-                    prepend-inner-icon="mdi-server" variant="outlined" density="compact" class="mb-2" autofocus
+                    :prepend-inner-icon="mdiServer" variant="outlined" density="compact" class="mb-2" autofocus
                     @keyup.enter="redirectPort !== 0 && confirmRedirect()" />
                 <v-text-field v-model.number="redirectPort" label="Port" placeholder="4444"
-                    prepend-inner-icon="mdi-pound" variant="outlined" density="compact" type="number" :min="1"
+                    :prepend-inner-icon="mdiPound" variant="outlined" density="compact" type="number" :min="1"
                     :max="65535" @keyup.enter="redirectHost && confirmRedirect()" />
             </v-card-text>
 
@@ -107,6 +107,22 @@
 <script lang="ts" setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { usePeerFilter } from '@/composables/usePeerFilter'
+import {
+    mdiCheckboxMultipleMarked,
+    mdiCheckboxMultipleBlankOutline,
+    mdiLanDisconnect,
+    mdiCircle,
+    mdiCircleOutline,
+    mdiArrowRight,
+    mdiSwapHorizontal,
+    mdiPackageVariant,
+    mdiArrowRightCircle,
+    mdiLinkLock,
+    mdiLinkVariantMinus,
+    mdiHelpCircle,
+    mdiServer,
+    mdiPound,
+} from '@mdi/js'
 
 const API_BASE = 'http://127.0.0.1:8888'
 
@@ -146,10 +162,10 @@ function stateColor(state: PeerState): string {
 
 function stateIcon(state: PeerState): string {
     switch (state) {
-        case PeerState.FORWARD: return 'mdi-arrow-right-circle'
-        case PeerState.REDIRECT_PERMANENT: return 'mdi-link-lock'
-        case PeerState.REDIRECT_ONCE: return 'mdi-link-variant-minus'
-        default: return 'mdi-help-circle'
+        case PeerState.FORWARD: return mdiArrowRightCircle
+        case PeerState.REDIRECT_PERMANENT: return mdiLinkLock
+        case PeerState.REDIRECT_ONCE: return mdiLinkVariantMinus
+        default: return mdiHelpCircle
     }
 }
 
@@ -166,7 +182,9 @@ async function fetchPeers(): Promise<void> {
     try {
         const res = await fetch(`${API_BASE}/getpeers`)
         if (res.ok) {
+            // Fully replace peer data — this is what re-renders chips for ALL peers
             peers.value = await res.json()
+            // Only initialises the event-log checkbox for IPs we haven't seen before
             Object.keys(peers.value).forEach(registerPeer)
         }
     } catch {
@@ -184,15 +202,11 @@ async function setPeerStatus(
     if (host !== undefined && port !== undefined) {
         body.redirection = { host, port }
     }
-    try {
-        await fetch(`${API_BASE}/setpeerstatus`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        })
-    } catch {
-        // ignore
-    }
+    await fetch(`${API_BASE}/setpeerstatus`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
     await fetchPeers()
 }
 

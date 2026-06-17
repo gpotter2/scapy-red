@@ -3,6 +3,7 @@ requires = [
     "setuptools>=77.0.0",
     "scapy>=2.7.1rc1",
     "scapy-rpc>=0.0.7",
+    "cryptography",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -49,7 +50,10 @@ tests = [
 ]
 
 [tool.setuptools.packages.find]
-include = [ "scapyred", "scapyred.completions" ]
+include = ["scapyred", "scapyred.completions", "scapyred.tcpproxy"]
+
+[tool.setuptools.package-data]
+"scapyred.tcpproxy" = ["web/dist/**/*"]
 
 [project.scripts]
 scapy-dominfo   = "scapyred.dominfo:main"

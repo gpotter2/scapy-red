@@ -15,7 +15,7 @@
 
     <v-btn
       class="ma-2"
-      icon="mdi-theme-light-dark"
+      :icon="mdiThemeLightDark"
       location="bottom right"
       position="absolute"
       @click="$vuetify.theme.cycle()"
@@ -26,4 +26,5 @@
 <script lang="ts" setup>
 import PeersPanel from './components/PeersPanel.vue'
 import EventsPanel from './components/EventsPanel.vue'
+import { mdiThemeLightDark } from '@mdi/js'
 </script>

@@ -80,7 +80,9 @@ class ProxyFwdMachine(ForwardMachine):
         """
         This is called by the ForwardMachine on each event.
         """
-        src, dst = (repr(ctx.addr), repr(ctx.dest)) if cs else (repr(ctx.dest), repr(ctx.addr))
+        src, dst = (
+            (repr(ctx.addr), repr(ctx.dest)) if cs else (repr(ctx.dest), repr(ctx.addr))
+        )
         ev_type = "client" if cs else "server"
 
         if evt == self.FORWARD:
@@ -125,11 +127,15 @@ class ProxyFwdMachine(ForwardMachine):
                 raise self.FORWARD()
             else:
                 ctx.redirected = True
-                raise self.REDIRECT_TO(host=ctx.peer.redirect_host, port=ctx.peer.redirect_port)
+                raise self.REDIRECT_TO(
+                    host=ctx.peer.redirect_host, port=ctx.peer.redirect_port
+                )
         elif ctx.peer.state == PeerState.REDIRECT_ONCE:
             ctx.redirected = True
             ctx.peer.state = PeerState.FORWARD
-            raise self.REDIRECT_TO(host=ctx.peer.redirect_host, port=ctx.peer.redirect_port)
+            raise self.REDIRECT_TO(
+                host=ctx.peer.redirect_host, port=ctx.peer.redirect_port
+            )
         else:
             raise ValueError
 
@@ -191,7 +197,7 @@ class HTTP_Management(HTTP_Server):
             # Get a flow of events. The client will poll this on a timer, and immediately
             # whenever an event that isn't 'null' is returned.
             try:
-                event = self.fwdm.events.get(timeout=1)
+                event = self.fwdm.events.get_nowait()
             except queue.Empty:
                 event = None
             return self.rep_json(event)
@@ -208,6 +214,10 @@ class HTTP_Management(HTTP_Server):
                 if "redirection" in data:
                     peer.redirect_host = data["redirection"]["host"]
                     peer.redirect_port = data["redirection"]["port"]
+
+                return HTTPResponse(
+                    Access_Control_Allow_Origin="*",
+                )
             except Exception:
                 return HTTPResponse(
                     Status_Code=b"400",
@@ -215,24 +225,31 @@ class HTTP_Management(HTTP_Server):
                 )
         else:
             # Try to serve a static file from the compiled webapp
-            web_dist = pathlib.Path(__file__).parent / "web_dist"
-            rel = pkt.Path.lstrip(b"/") or b"index.html"
+            web_dist = pathlib.Path(__file__).parent / "web" / "dist"
+            rel = pkt.Path.lstrip(b"/").split(b"?")[0].split(b"#")[0] or b"index.html"
             try:
                 fpath = (web_dist / rel.decode()).resolve()
-                # Prevent path traversal outside web_dist
-                fpath.relative_to(web_dist.resolve())
-                if fpath.is_file():
-                    mime = mimetypes.guess_type(str(fpath))[0] or "application/octet-stream"
-                    return HTTPResponse(
-                        Content_Type=mime,
-                        Access_Control_Allow_Origin="*",
-                    ) / fpath.read_bytes()
+                if fpath.is_file() and fpath.relative_to(web_dist.resolve()):
+                    mime = (
+                        mimetypes.guess_type(str(fpath))[0]
+                        or "application/octet-stream"
+                    )
+                    return (
+                        HTTPResponse(
+                            Content_Type=mime,
+                            Access_Control_Allow_Origin="*",
+                        )
+                        / fpath.read_bytes()
+                    )
             except (ValueError, UnicodeDecodeError):
                 pass
-            return HTTPResponse(
-                Status_Code=b"404",
-                Reason_Phrase=b"Not Found",
-            ) / "<!doctype html><html><body><h1>404 - Not Found</h1></body></html>"
+            return (
+                HTTPResponse(
+                    Status_Code=b"404",
+                    Reason_Phrase=b"Not Found",
+                )
+                / "<!doctype html><html><body><h1>404 - Not Found</h1></body></html>"
+            )
 
 
 ##############################
@@ -293,7 +310,7 @@ def tcpproxy(
         local_ip="127.0.0.1",
         fwdm=fwdm,
         bg=True,
-        verb=False,
+        debug=4,
     )
 
     try:

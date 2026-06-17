@@ -27,6 +27,8 @@ try:
 except:
     raise ImportError("setuptools is required to install Scapy RED !")
 
+import subprocess
+
 try:
     from scapy.utils import AutoArgparse
 except:
@@ -115,6 +117,22 @@ def _build_completions(dest):
             )
 
 
+def _build_webapp(dest):
+    """
+    Build the Vue webapp and copy the output into the target build tree.
+    Explicit copy is needed because web/dist/ is gitignored.
+    """
+    import shutil
+    web_src = pathlib.Path(__file__).parent / "scapyred" / "tcpproxy" / "web"
+    web_dist_src = web_src / "dist"
+    web_dist_dst = pathlib.Path(dest) / "scapyred" / "tcpproxy" / "web" / "dist"
+    subprocess.run(["npm", "ci", "--prefer-offline"], cwd=web_src, check=True)
+    subprocess.run(["npm", "run", "build"], cwd=web_src, check=True)
+    if web_dist_dst.exists():
+        shutil.rmtree(web_dist_dst)
+    shutil.copytree(web_dist_src, web_dist_dst)
+
+
 class SDist(sdist):
     """
     Modified sdist to create completions
@@ -124,6 +142,8 @@ class SDist(sdist):
         super(SDist, self).make_release_tree(base_dir, *args, **kwargs)
         # ensure completions are generated
         _build_completions(base_dir)
+        # ensure webapp is built
+        _build_webapp(base_dir)
 
 
 class BuildPy(build_py):
@@ -135,6 +155,8 @@ class BuildPy(build_py):
         super(BuildPy, self).build_package_data()
         # ensure completions are generated
         _build_completions(self.build_lib)
+        # ensure webapp is built
+        _build_webapp(self.build_lib)
 
 
 setup(

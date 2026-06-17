@@ -7,7 +7,7 @@
 // Composables
 import { createVuetify } from 'vuetify'
 // Styles
-import '@mdi/font/css/materialdesignicons.css'
+import { aliases, mdi } from 'vuetify/iconsets/mdi-svg'
 
 import 'vuetify/styles'
 
@@ -15,6 +15,13 @@ import 'vuetify/styles'
 const goldSecondary = { secondary: '#D4A017' }
 
 export default createVuetify({
+  icons: {
+    defaultSet: 'mdi',
+    aliases,
+    sets: {
+      mdi,
+    },
+  },
   theme: {
     defaultTheme: 'system',
     themes: {
