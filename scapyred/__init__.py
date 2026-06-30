@@ -9,11 +9,14 @@ Scapy RED plugin
 
 import pathlib
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 
 def scapy_ext(pkg):
     pkg.config("Scapy RED", __version__)
+
+    # Imports modules that have hooks
+    import scapyred.krbingest
 
     # Add completions
     for completion in (pathlib.Path(__file__).parent / "completions").glob("scapy-*"):
