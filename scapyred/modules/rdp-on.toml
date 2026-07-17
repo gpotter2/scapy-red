@@ -1,0 +1,12 @@
+# Enable Remote Desktop (RDP) on the target host.
+# Sets fDenyTSConnections = 0, which is what the "Allow remote connections"
+# toggle does. You may still need to open the firewall separately.
+title = "Enable RDP"
+short = "rdp-on"
+key   = "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server"
+
+[[actions]]
+op   = "set_value"
+name = "fDenyTSConnections"
+type = "REG_DWORD"
+data = "0"

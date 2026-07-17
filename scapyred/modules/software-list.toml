@@ -1,0 +1,16 @@
+# List software installed on the target host.
+# Reads the per-machine "Uninstall" keys (64-bit and 32-bit/WOW6432Node) and
+# prints DisplayName / DisplayVersion / Publisher for every entry that has them.
+# Read-only: this module does not modify the registry.
+title = "List installed software"
+short = "software-list"
+
+[[actions]]
+op     = "enum"
+key    = "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
+values = ["DisplayName", "DisplayVersion", "Publisher"]
+
+[[actions]]
+op     = "enum"
+key    = "HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
+values = ["DisplayName", "DisplayVersion", "Publisher"]

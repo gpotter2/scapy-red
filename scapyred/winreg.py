@@ -247,10 +247,12 @@ class RegClient(CLIUtil):
             )
             self.client.bind()
         except ValueError as exc:
-            log_runtime.warning(f"""
+            log_runtime.warning(
+                f"""
                 Remote service didn't seem to be running.
                 Let's try again in 2", now that we should have trigger it. ({exc})
-                """)
+                """
+            )
 
             sleep(2)
             self.client.connect(
@@ -261,7 +263,8 @@ class RegClient(CLIUtil):
             self.client.bind()
         except Scapy_Exception as exc:
             if str(3221225566) in str(exc):
-                log_runtime.error(f"""
+                log_runtime.error(
+                    f"""
 [!] STATUS_LOGON_FAILURE - {exc}  You used:
     - UPN {UPN},
     - password {password},
@@ -276,7 +279,8 @@ class RegClient(CLIUtil):
 UPN = "WORKGROUP\\\\Administrator" or
 UPN = "Administrator@WORKGROUP" or
 UPN = "Administrator@192.168.1.2"
-""")
+"""
+                )
             raise exc
         except TimeoutError as exc:
             log_runtime.error(
@@ -562,6 +566,92 @@ UPN = "Administrator@192.168.1.2"
         return self.ls_complete(subkey)
 
     # --------------------------------------------- #
+    #                       Tree
+    # --------------------------------------------- #
+
+    @CLIUtil.addcommand()
+    def tree(
+        self,
+        subkey: str | None = None,
+        values: bool = False,
+        depth: int = 3,
+    ) -> list[str]:
+        """
+        Display the subkey hierarchy below `subkey` as a tree.
+
+        :param subkey: the relative subkey to root the tree at.
+                       If None, uses the current subkey path.
+        :param depth: maximum number of levels to descend (default 3).
+                      Use -1 for unlimited depth.
+        :param values: if set, also show each key's registry values as
+                       leaf nodes.
+
+        :return: the list of pre-rendered (already colorized) output lines.
+        """
+        if self._require_root_handles():
+            return []
+        header = self.collapse_path(self.pwd / (subkey or ""))
+        lines = [f"{self.current_root_path}{header}"]
+        lines += self._tree_lines(
+            pathlib.PureWindowsPath(subkey or ""), "", depth, values
+        )
+        return lines
+
+    def _tree_lines(
+        self,
+        path: pathlib.PureWindowsPath,
+        prefix: str,
+        depth: int,
+        values: bool,
+    ) -> list[str]:
+        """
+        Recursively build the tree lines below ``path`` (relative to ``pwd``).
+        ``prefix`` is the accumulated branch drawing; only the node names are
+        colorized, so the connectors stay aligned. Enumeration goes through
+        the cached ``ls``/``cat`` so repeated traversal is cheap.
+        """
+        ct = conf.color_theme
+
+        # Subkeys (containers) first, then values (leaves) when requested.
+        children = [(name, True) for name in self.ls(path)]
+        if values:
+            children += [(entry, False) for entry in self.cat(path)]
+
+        lines: list[str] = []
+        for i, (child, is_key) in enumerate(children):
+            last = i == len(children) - 1
+            connector = "└── " if last else "├── "
+            if is_key:
+                name = ct.blue(child)
+            else:
+                label = child.reg_name or "(Default)"
+                name = ct.green(f"{label} ({child.reg_type.name})")
+            lines.append(prefix + connector + name)
+
+            # Recurse into subkeys while there is depth budget (-1 = unlimited).
+            if is_key and (depth > 1 or depth < 0):
+                extension = "    " if last else "│   "
+                lines += self._tree_lines(
+                    path / child, prefix + extension, depth - 1, values
+                )
+        return lines
+
+    @CLIUtil.addoutput(tree)
+    def tree_output(self, results: list[str]) -> None:
+        """
+        Print the output of 'tree'
+        """
+        for line in results:
+            print(line)
+
+    @CLIUtil.addcomplete(tree)
+    def tree_complete(self, subkey: str) -> list[str]:
+        """
+        Auto-complete tree
+        """
+        return self.ls_complete(subkey)
+
+    # --------------------------------------------- #
     #                   Change Directory
     # --------------------------------------------- #
 
@@ -720,7 +810,8 @@ UPN = "Administrator@192.168.1.2"
             print("No information found.")
             return
         class_info = info.valueof("lpClassOut.Buffer")
-        print(f"""
+        print(
+            f"""
 Info on key:
   - Number of subkeys: {info.lpcSubKeys}
   - Length of the longest subkey name (in bytes): {info.lpcbMaxSubKeyLen}
@@ -730,7 +821,8 @@ Info on key:
   - Class: {bytes.fromhex(class_info[:-1].decode())
             if class_info is not None
             else "None"}
-""")
+"""
+        )
 
     @CLIUtil.addcomplete(query_info)
     def query_info_complete(self, subkey: str) -> list[str]:
@@ -1457,9 +1549,11 @@ Info on key:
         """
 
         log_runtime.info("Jumping into the code for dev purpose...")
-        print("""[!] For a better experience type:
+        print(
+            """[!] For a better experience type:
 from IPython import embed
-embed()""")
+embed()"""
+        )
         breakpoint()
 
 
