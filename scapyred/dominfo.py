@@ -58,6 +58,8 @@ def dominfo(realm: str = None, ip: str = None, timeout: int = 3):
         # Sans DC locator
         scapy-dominfo --ip 192.168.0.100
     """
+    assert realm or ip, "Must provide either 'realm' or 'ip' !"
+
     # IP
     if ip is None:
         ip = dclocator(realm, debug=1).ip
@@ -88,7 +90,7 @@ def dominfo(realm: str = None, ip: str = None, timeout: int = 3):
                             LDAP_Filter(
                                 filter=LDAP_FilterEqual(
                                     attributeType=ASN1_STRING(b"NtVer"),
-                                    attributeValue=ASN1_STRING(b"\x16\x00\x00!"),
+                                    attributeValue=ASN1_STRING(b"\x1e\x00\x00!"),
                                 )
                             ),
                         ]
@@ -189,11 +191,15 @@ def dominfo(realm: str = None, ip: str = None, timeout: int = 3):
                         "NetbiosComputerName",
                         "UserName",
                         "DcSiteName",
-                        "DcSiteName",
                         "ClientSiteName",
+                        "NextClosestSiteName",
                     ]:
                         results.append((fld, netlogon.getfieldval(fld).decode()))
                     results.append(("DomainGuid", netlogon.sprintf("%DomainGuid%")))
+                    if netlogon.DcSockAddr:
+                        results.append(
+                            ("DcSockAddr", netlogon.DcSockAddr.sprintf("%sin_addr%"))
+                        )
                     continue
                 elif typ.lower().endswith("functionality"):
                     i = int(x.values[0].value.val)
